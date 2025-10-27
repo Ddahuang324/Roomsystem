@@ -1,0 +1,5 @@
+{
+  "name": "房屋分配助手 (Housing Allocation Assistant)",
+  "description": "一个先进的两阶段房屋分配应用。第一阶段通过导入CSV文件录入参与者需求和房源信息，并随机抽取分配顺序。第二阶段根据顺序，为每个参与者自动随机分配其所需的多套、多户型房源。",
+  "requestFramePermissions": []
+}

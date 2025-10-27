@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { UploadIcon, UsersIcon, HomeIcon } from './IconComponents';
 import type { Participant, HousingUnit, ParticipantNeed } from '../types';
@@ -7,6 +6,30 @@ interface DataImportProps {
   onDataLoaded: (participants: Participant[], housingStock: HousingUnit[]) => void;
   isLoading: boolean;
 }
+
+const FileUploadArea: React.FC<{
+    title: string;
+    description: string;
+    Icon: React.FC<{className?: string}>;
+    file: File | null;
+    onFileChange: (file: File | null) => void;
+    inputRef: React.RefObject<HTMLInputElement>;
+}> = ({ title, description, Icon, file, onFileChange, inputRef }) => (
+    <div className="flex flex-col items-center p-6 border-2 border-dashed border-slate-300 dark:border-gray-600 rounded-xl bg-slate-50 dark:bg-gray-700/50 transition-colors duration-300">
+        <Icon className="h-12 w-12 text-slate-400 dark:text-gray-500 mb-3" />
+        <h3 className="font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{description}</p>
+        <button 
+            onClick={() => inputRef.current?.click()} 
+            className="text-sm bg-slate-200 dark:bg-gray-700 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors duration-200 text-slate-800 dark:text-slate-200 font-medium"
+        >
+            选择文件
+        </button>
+        <input type="file" accept=".csv" ref={inputRef} onChange={(e) => onFileChange(e.target.files?.[0] || null)} className="hidden" />
+        {file && <p className="text-sm mt-3 text-green-600 dark:text-green-400 font-medium bg-green-100 dark:bg-green-900/50 px-3 py-1 rounded-full">{file.name}</p>}
+    </div>
+);
+
 
 const DataImport: React.FC<DataImportProps> = ({ onDataLoaded, isLoading }) => {
   const [participantFile, setParticipantFile] = useState<File | null>(null);
@@ -99,48 +122,38 @@ const DataImport: React.FC<DataImportProps> = ({ onDataLoaded, isLoading }) => {
   };
 
   return (
-    <div className="animate-slide-in-up">
-      <div className="text-center mb-6">
-        <div className="flex justify-center items-center gap-2">
-          <UploadIcon className="h-8 w-8 text-indigo-500" />
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">第一阶段：数据导入</h2>
-        </div>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">请上传包含参与者需求和可用房源的CSV文件。</p>
-      </div>
-
+    <div className="animate-fade-in">
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Participants Upload */}
-        <div className="flex flex-col items-center p-4 border-2 border-dashed border-slate-300 dark:border-gray-600 rounded-lg">
-          <UsersIcon className="h-10 w-10 text-slate-400 mb-2" />
-          <h3 className="font-semibold text-slate-700 dark:text-slate-300">上传参与者需求</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">CSV格式: 姓名,户型,数量</p>
-          <button onClick={() => participantInputRef.current?.click()} className="text-sm bg-slate-200 dark:bg-gray-700 px-4 py-2 rounded-md hover:bg-slate-300 dark:hover:bg-gray-600">选择文件</button>
-          <input type="file" accept=".csv" ref={participantInputRef} onChange={(e) => setParticipantFile(e.target.files?.[0] || null)} className="hidden" />
-          {participantFile && <p className="text-sm mt-2 text-green-600 dark:text-green-400">{participantFile.name}</p>}
-        </div>
-
-        {/* Housing Upload */}
-        <div className="flex flex-col items-center p-4 border-2 border-dashed border-slate-300 dark:border-gray-600 rounded-lg">
-          <HomeIcon className="h-10 w-10 text-slate-400 mb-2" />
-          <h3 className="font-semibold text-slate-700 dark:text-slate-300">上传可用房源</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">CSV格式: 户型,区,栋,层,房号,...</p>
-          <button onClick={() => housingInputRef.current?.click()} className="text-sm bg-slate-200 dark:bg-gray-700 px-4 py-2 rounded-md hover:bg-slate-300 dark:hover:bg-gray-600">选择文件</button>
-          <input type="file" accept=".csv" ref={housingInputRef} onChange={(e) => setHousingFile(e.target.files?.[0] || null)} className="hidden" />
-          {housingFile && <p className="text-sm mt-2 text-green-600 dark:text-green-400">{housingFile.name}</p>}
-        </div>
+        <FileUploadArea
+            title="上传参与者需求"
+            description="CSV格式: 姓名,户型,数量"
+            Icon={UsersIcon}
+            file={participantFile}
+            onFileChange={setParticipantFile}
+            inputRef={participantInputRef}
+        />
+        <FileUploadArea
+            title="上传可用房源"
+            description="CSV格式: 户型,区,栋,层,..."
+            Icon={HomeIcon}
+            file={housingFile}
+            onFileChange={setHousingFile}
+            inputRef={housingInputRef}
+        />
       </div>
       
-      {error && <p className="text-red-500 text-center mt-4">{error}</p>}
-      {summary && !error && <p className="text-blue-600 dark:text-blue-400 text-center mt-4">{summary}</p>}
+      {error && <p className="text-red-500 text-center mt-4 font-medium animate-fade-in">{error}</p>}
+      {summary && !error && <p className="text-blue-600 dark:text-blue-400 text-center mt-4 font-medium animate-fade-in">{summary}</p>}
 
-
-      <button
-        onClick={processData}
-        disabled={isLoading || !participantFile || !housingFile}
-        className="mt-6 w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105 flex items-center justify-center gap-2 disabled:bg-indigo-400 disabled:cursor-not-allowed disabled:transform-none"
-      >
-        {isLoading ? '处理中...' : '加载并验证数据'}
-      </button>
+      <div className="mt-8 border-t border-slate-200 dark:border-gray-700 pt-6">
+        <button
+          onClick={processData}
+          disabled={isLoading || !participantFile || !housingFile}
+          className="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-slate-100 dark:focus:ring-offset-gray-800 transition-all transform hover:scale-105 flex items-center justify-center gap-2 disabled:bg-indigo-400 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+        >
+          {isLoading ? '处理中...' : <> <UploadIcon className="h-5 w-5" /> 加载并验证数据 </>}
+        </button>
+      </div>
     </div>
   );
 };

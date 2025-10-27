@@ -3,6 +3,7 @@ import type { Participant, HousingUnit, AllocationResult } from './types';
 import DataImport from './components/ParticipantInput';
 import SequenceAllocation from './components/HousingInput';
 import ResultsDisplay from './components/ResultsDisplay';
+import { UploadIcon, TicketIcon, HomeIcon } from './components/IconComponents';
 
 type Stage = 'DATA_IMPORT' | 'ALLOCATION_SEQUENCE' | 'RESULTS';
 
@@ -15,16 +16,22 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
+const STAGES_CONFIG = [
+    { id: 'DATA_IMPORT', title: '数据导入', Icon: UploadIcon },
+    { id: 'ALLOCATION_SEQUENCE', title: '抽取顺序', Icon: TicketIcon },
+    { id: 'RESULTS', title: '分配结果', Icon: HomeIcon },
+];
+
 const App: React.FC = () => {
   const [stage, setStage] = useState<Stage>('DATA_IMPORT');
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [housingStock, setHousingStock] = useState<HousingUnit[]>([]);
   const [allocationResults, setAllocationResults] = useState<AllocationResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false); // For sequence drawing animation
 
   const handleDataLoaded = (loadedParticipants: Participant[], loadedHousing: HousingUnit[]) => {
     setIsLoading(true);
-    // Simulate a brief processing delay for better UX
     setTimeout(() => {
         setParticipants(loadedParticipants);
         setHousingStock(loadedHousing);
@@ -34,17 +41,21 @@ const App: React.FC = () => {
   };
   
   const handleDrawSequence = () => {
-    setIsLoading(true);
+    setIsDrawing(true);
+    const shuffledParticipants = shuffleArray(participants);
+    const sequencedParticipants = shuffledParticipants.map((p, index) => (
+      Object.assign({}, p, { sequence: index + 1 })
+    ));
+    sequencedParticipants.sort((a, b) => a.sequence! - b.sequence!);
+    
+    // Simulate drawing animation
     setTimeout(() => {
-      const shuffledParticipants = shuffleArray(participants);
-      // FIX: Replaced object spread with `Object.assign` to fix "Spread types may only be created from object types" error.
-      const sequencedParticipants = shuffledParticipants.map((p, index) => (
-        Object.assign({}, p, { sequence: index + 1 })
-      ));
-      sequencedParticipants.sort((a, b) => a.sequence! - b.sequence!);
-      setParticipants(sequencedParticipants);
-      setIsLoading(false);
-    }, 500);
+        setParticipants(sequencedParticipants);
+        // Let animation play out
+        setTimeout(() => {
+            setIsDrawing(false);
+        }, participants.length * 75 + 500);
+    }, 1500);
   };
 
   const handleAllocate = () => {
@@ -57,16 +68,17 @@ const App: React.FC = () => {
             availableStock.set(unit.type, units);
         });
 
-        // Shuffle each type of housing stock for randomness
         for(const [type, units] of availableStock.entries()){
             availableStock.set(type, shuffleArray(units));
         }
 
-        const results: AllocationResult[] = participants.map(participant => {
+        const sortedParticipants = [...participants].sort((a, b) => a.sequence! - b.sequence!);
+
+        const results: AllocationResult[] = sortedParticipants.map(participant => {
             const allocatedUnits: HousingUnit[] = [];
             participant.needs.forEach(need => {
                 const stockForType = availableStock.get(need.housingType) || [];
-                const assigned = stockForType.splice(0, need.quantity); // Take N units from the shuffled stock
+                const assigned = stockForType.splice(0, need.quantity);
                 allocatedUnits.push(...assigned);
             });
             return {
@@ -88,14 +100,15 @@ const App: React.FC = () => {
     setHousingStock([]);
     setAllocationResults([]);
     setIsLoading(false);
+    setIsDrawing(false);
   };
 
-  const sortedParticipants = useMemo(() => {
-      if (participants.length > 0 && participants[0].sequence !== undefined) {
+  const sortedSequencedParticipants = useMemo(() => {
+      if (stage === 'ALLOCATION_SEQUENCE' && participants.length > 0 && participants[0].sequence !== undefined) {
         return [...participants].sort((a, b) => a.sequence! - b.sequence!);
       }
       return participants;
-  }, [participants]);
+  }, [participants, stage]);
 
 
   const renderStage = () => {
@@ -103,7 +116,7 @@ const App: React.FC = () => {
       case 'DATA_IMPORT':
         return <DataImport onDataLoaded={handleDataLoaded} isLoading={isLoading} />;
       case 'ALLOCATION_SEQUENCE':
-        return <SequenceAllocation participants={sortedParticipants} onDrawSequence={handleDrawSequence} onAllocate={handleAllocate} isLoading={isLoading} />;
+        return <SequenceAllocation participants={sortedSequencedParticipants} onDrawSequence={handleDrawSequence} onAllocate={handleAllocate} isLoading={isLoading} isDrawing={isDrawing} />;
       case 'RESULTS':
         return <ResultsDisplay results={allocationResults} onReset={handleReset} />;
       default:
@@ -111,17 +124,42 @@ const App: React.FC = () => {
     }
   };
 
+  const currentStageIndex = STAGES_CONFIG.findIndex(s => s.id === stage);
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 font-sans text-slate-800 dark:text-slate-200">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-xl md:max-w-2xl lg:max-w-4xl p-6 md:p-8 transition-all duration-500">
-        <header className="text-center mb-4 border-b border-slate-200 dark:border-gray-700 pb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-xl md:max-w-2xl lg:max-w-4xl transition-all duration-500">
+        <header className="text-center p-6 border-b border-slate-200 dark:border-gray-700">
             <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-teal-500">
                 房屋分配助手
             </h1>
             <p className="text-slate-500 dark:text-slate-400 mt-1">一个公平、透明、高效的随机分配工具</p>
         </header>
-        <div className="mt-6">
-            {renderStage()}
+
+        <div className="p-6 md:p-8">
+            <div className="mb-8">
+                <ol className="flex items-center w-full">
+                    {STAGES_CONFIG.map((stageConfig, index) => {
+                        const isCompleted = index < currentStageIndex;
+                        const isCurrent = index === currentStageIndex;
+                        const { Icon } = stageConfig;
+                        return (
+                             <li key={stageConfig.id} className={`flex w-full items-center ${index < STAGES_CONFIG.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-4 after:inline-block " : ''} ${isCompleted ? 'after:border-teal-500 dark:after:border-teal-400' : 'after:border-slate-200 dark:after:border-gray-600'}`}>
+                                <div className="flex flex-col items-center justify-center gap-1">
+                                    <span className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-300 ${isCurrent ? 'bg-indigo-600' : isCompleted ? 'bg-teal-500' : 'bg-slate-200 dark:bg-gray-700'}`}>
+                                        <Icon className={`w-5 h-5 ${isCurrent || isCompleted ? 'text-white' : 'text-slate-500 dark:text-gray-400'}`} />
+                                    </span>
+                                    <span className={`text-xs font-semibold ${isCurrent ? 'text-indigo-600 dark:text-indigo-300' : isCompleted ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>{stageConfig.title}</span>
+                                </div>
+                            </li>
+                        )
+                    })}
+                </ol>
+            </div>
+
+            <div className="mt-6 min-h-[300px]">
+                {renderStage()}
+            </div>
         </div>
       </div>
        <footer className="text-center mt-8 text-sm text-slate-500 dark:text-slate-400">

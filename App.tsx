@@ -35,6 +35,7 @@ const App: React.FC = () => {
     setTimeout(() => {
         setParticipants(loadedParticipants);
         setHousingStock(loadedHousing);
+        setAllocationResults([]); // Clear previous results
         setStage('ALLOCATION_SEQUENCE');
         setIsLoading(false);
     }, 500);
@@ -42,20 +43,18 @@ const App: React.FC = () => {
   
   const handleDrawSequence = () => {
     setIsDrawing(true);
+    setAllocationResults([]); // Clear previous results on re-draw
     const shuffledParticipants = shuffleArray(participants);
     const sequencedParticipants = shuffledParticipants.map((p, index) => (
       Object.assign({}, p, { sequence: index + 1 })
     ));
     sequencedParticipants.sort((a, b) => a.sequence! - b.sequence!);
     
-    // Simulate drawing animation
+    // Simulate a very short drawing animation
     setTimeout(() => {
         setParticipants(sequencedParticipants);
-        // Let animation play out
-        setTimeout(() => {
-            setIsDrawing(false);
-        }, participants.length * 75 + 500);
-    }, 1500);
+        setIsDrawing(false);
+    }, 300);
   };
 
   const handleAllocate = () => {
@@ -102,6 +101,25 @@ const App: React.FC = () => {
     setIsLoading(false);
     setIsDrawing(false);
   };
+  
+  const handleStageClick = (targetStage: Stage) => {
+    const isUnlocked = 
+        (targetStage === 'DATA_IMPORT') ||
+        (targetStage === 'ALLOCATION_SEQUENCE' && participants.length > 0) ||
+        (targetStage === 'RESULTS' && allocationResults.length > 0);
+
+    if (isUnlocked) {
+        const targetIndex = STAGES_CONFIG.findIndex(s => s.id === targetStage);
+        const resultsIndex = STAGES_CONFIG.findIndex(s => s.id === 'RESULTS');
+        
+        // If moving backwards to a stage before results, clear the results.
+        if (targetIndex < resultsIndex) {
+            setAllocationResults([]);
+        }
+        setStage(targetStage);
+    }
+  };
+
 
   const sortedSequencedParticipants = useMemo(() => {
       if (stage === 'ALLOCATION_SEQUENCE' && participants.length > 0 && participants[0].sequence !== undefined) {
@@ -133,28 +151,43 @@ const App: React.FC = () => {
             <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-teal-500">
                 房屋分配助手
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">一个公平、透明、高效的随机分配工具</p>
         </header>
 
         <div className="p-6 md:p-8">
             <div className="mb-8">
-                <ol className="flex items-center w-full">
+                <div className="flex items-start justify-between">
                     {STAGES_CONFIG.map((stageConfig, index) => {
                         const isCompleted = index < currentStageIndex;
                         const isCurrent = index === currentStageIndex;
                         const { Icon } = stageConfig;
+                        
+                        const isUnlocked = 
+                            (stageConfig.id === 'DATA_IMPORT') ||
+                            (stageConfig.id === 'ALLOCATION_SEQUENCE' && participants.length > 0) ||
+                            (stageConfig.id === 'RESULTS' && allocationResults.length > 0);
+
                         return (
-                             <li key={stageConfig.id} className={`flex w-full items-center ${index < STAGES_CONFIG.length - 1 ? "after:content-[''] after:w-full after:h-1 after:border-b after:border-4 after:inline-block " : ''} ${isCompleted ? 'after:border-teal-500 dark:after:border-teal-400' : 'after:border-slate-200 dark:after:border-gray-600'}`}>
-                                <div className="flex flex-col items-center justify-center gap-1">
-                                    <span className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-300 ${isCurrent ? 'bg-indigo-600' : isCompleted ? 'bg-teal-500' : 'bg-slate-200 dark:bg-gray-700'}`}>
-                                        <Icon className={`w-5 h-5 ${isCurrent || isCompleted ? 'text-white' : 'text-slate-500 dark:text-gray-400'}`} />
-                                    </span>
-                                    <span className={`text-xs font-semibold ${isCurrent ? 'text-indigo-600 dark:text-indigo-300' : isCompleted ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>{stageConfig.title}</span>
+                             <React.Fragment key={stageConfig.id}>
+                                <div className="flex flex-col items-center text-center w-24">
+                                    <div 
+                                        onClick={() => handleStageClick(stageConfig.id as Stage)}
+                                        className={`flex flex-col items-center gap-2 ${isUnlocked ? 'cursor-pointer' : 'cursor-default'}`}
+                                    >
+                                        <span className={`flex items-center justify-center w-16 h-16 rounded-full transition-colors duration-300 ${isCurrent ? 'bg-indigo-600' : isCompleted ? 'bg-teal-500' : 'bg-slate-200 dark:bg-gray-700'}`}>
+                                            <Icon className={`w-8 h-8 ${isCurrent || isCompleted ? 'text-white' : 'text-slate-500 dark:text-gray-400'}`} />
+                                        </span>
+                                        <span className={`text-sm font-semibold ${isCurrent ? 'text-indigo-600 dark:text-indigo-300' : isCompleted ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>{stageConfig.title}</span>
+                                    </div>
                                 </div>
-                            </li>
+                                {index < STAGES_CONFIG.length - 1 && (
+                                    <div className="flex-1 mt-8">
+                                        <div className={`h-1 rounded transition-colors duration-300 ${isCompleted ? 'bg-teal-500 dark:bg-teal-400' : 'bg-slate-200 dark:bg-gray-600'}`}></div>
+                                    </div>
+                                )}
+                            </React.Fragment>
                         )
                     })}
-                </ol>
+                </div>
             </div>
 
             <div className="mt-6 min-h-[300px]">

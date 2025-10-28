@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { Participant } from '../types';
 import { HomeIcon, TicketIcon } from './IconComponents';
 
@@ -12,30 +12,6 @@ interface SequenceAllocationProps {
 
 const SequenceAllocation: React.FC<SequenceAllocationProps> = ({ participants, onDrawSequence, onAllocate, isLoading, isDrawing }) => {
   const isSequenced = participants.length > 0 && participants[0].sequence !== undefined;
-  const [visibleSequences, setVisibleSequences] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (isSequenced && !isDrawing) {
-        const allIds = new Set(participants.map(p => p.id));
-        setVisibleSequences(allIds);
-    } else {
-        setVisibleSequences(new Set());
-    }
-  }, [isSequenced, isDrawing, participants]);
-
-  useEffect(() => {
-      if (isSequenced && isDrawing) {
-          setVisibleSequences(new Set());
-          const timer = setTimeout(() => {
-              participants.forEach((p, index) => {
-                  setTimeout(() => {
-                      setVisibleSequences(prev => new Set(prev).add(p.id));
-                  }, index * 75); 
-              });
-          }, 1500);
-          return () => clearTimeout(timer);
-      }
-  }, [isSequenced, isDrawing, participants]);
 
   const totalNeeds = participants.reduce((acc, p) => acc + p.needs.reduce((sum, need) => sum + need.quantity, 0), 0);
 
@@ -58,10 +34,8 @@ const SequenceAllocation: React.FC<SequenceAllocationProps> = ({ participants, o
                       className={`
                         bg-indigo-100 text-indigo-800 text-lg font-bold
                         dark:bg-indigo-900/70 dark:text-indigo-200
-                        flex items-center justify-center rounded-full w-10 h-10 transition-all duration-300
-                        ${visibleSequences.has(p.id) ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
+                        flex items-center justify-center rounded-full w-10 h-10
                       `}
-                      style={{ transitionDelay: `${p.sequence! * 20}ms`}}
                     >
                       {p.sequence}
                     </span>
